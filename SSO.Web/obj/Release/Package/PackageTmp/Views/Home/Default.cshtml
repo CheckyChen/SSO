@@ -1,0 +1,371 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <link href="~/Content/css/framework-font.css" rel="stylesheet" />
+    <link href="~/Content/css/framework-ui.css" rel="stylesheet" />
+    <script src="~/Content/js/jquery/jquery-2.1.1.min.js"></script>
+    <link href="~/Content/css/framework-theme.css" rel="stylesheet" />
+    <link href="~/Content/js/bootstrap/bootstrap.min.css" rel="stylesheet" />
+    <link href="~/Content/css/framework-theme.css" rel="stylesheet" />
+    <script src="~/Content/js/charts/Chart.js"></script>
+    <link href="~/Content/css/animate.css" rel="stylesheet" />
+    <script src="~/Content/js/framework-ui.js"></script>
+    <script src="~/Content/js/cookie/jquery.cookie.js"></script>
+    <style>
+        .AppType {
+            /*background-color: #ccc;*/
+            /*border: 1px solid #ccc;*/
+            padding-top: 5px;
+        }
+
+        .TypeName {
+            padding-top: 5px;
+            border-bottom: 1px solid #2f2d2d;
+            margin-left: 20px;
+            font-size: 15px;
+            height: 40px;
+            color: #2f2d2d;
+        }
+
+        li {
+            border-radius: 5px;
+            /*background-color: #53e3a6;*/
+            display: inline-block;
+            vertical-align: middle;
+            width: 120px;
+            height: 120px;
+            line-height: 25px;
+            padding: 20px 0;
+            margin-right: -1px;
+            margin-bottom: -1px;
+            border: 1px solid black;
+            font-size: 11px;
+            text-align: center;
+            /*color: #666;*/
+            transition: all .3s;
+            -webkit-transition: all .3s;
+            margin-left: 10px;
+        }
+
+        .bs-glyphicons-list {
+            margin-top: 50px;
+            margin-bottom: 30px;
+        }
+
+        .appName {
+            margin-top: 17px;
+            /*background-color: #ccc;*/
+            border-bottom-left-radius: 5px;
+            border-bottom-right-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <script>
+
+        //默认值http://localhost:9000/
+        var SSOHostAppService = '@SSO.Code.Configs.GetValue("SSOHostAppService")';
+
+        var userPermission = $.parseJSON(localStorage.getItem("userPermission"));
+        //角色所拥有的模块
+        var appArr = userPermission.UserRoleFunctionInfos;
+        //应用分类模板
+        var typeTemplate = " <div class=\"AppType\">" +
+                               " <p class=\"TypeName\"><i class=\"$type_icon$\"></i> $typeName$</p>" +
+                               " <ul class=\"bs-glyphicons-list\" id=\"$typeCode$\"></ul>" +
+                            " </div><br/>";
+        //B/S端应用信息模板
+        var liTemplate = "<li><a href=\"$url$\" target=\"_blank\" style=\"text-decoration: none;color:black;\">" +
+                                 "<i class=\"$icon$\" aria-hidden=\"true\"></i>" +
+                                 "<p class=\"appName\">$appName$</p>" +
+                         "</a></li>";
+
+        //C/S端应用信息模板
+        var liTemplate_cs = "<li><a href=\"javascript:void(0);\" id=\"$funcCode$\" data-path=\"$cs_path$\" onclick=OpenExeFile(this)  target=\"_blank\" style=\"text-decoration: none;color:black;\">" +
+                                "<i class=\"$icon$\" aria-hidden=\"true\"></i>" +
+                                "<p class=\"appName\">$appName$</p>" +
+                        "</a></li>";
+
+        $(function () {
+
+            Init();
+            $(window).resize(function () {
+                Init();
+            });
+
+            InitTypeHtml();
+
+            InitAppLiHtml();
+
+            $("li").mouseenter(function () {
+                $(this).addClass("tada animated");
+            });
+
+            $("li").mouseleave(function () {
+                $(this).removeClass("tada");
+            });
+        });
+
+        //初始化窗口
+        function Init() {
+            var windowsHeight = $(window).height();
+            $("#pannel").height(windowsHeight - 20);
+        }
+
+        //加载应用分类HTML
+        function InitTypeHtml() {
+            var appType = appArr;
+            var typeHtml = "";
+
+            for (var i = 0; i < appType.length; i++) {
+
+                if (appType[i].FuncType == "2") {
+                    var tmp = typeTemplate;
+                    var icon = appType[i]["FuncIcon"];
+
+                    if (icon == null || icon == "") {
+                        icon = "fa fa-book";
+                    }
+                    typeHtml += tmp.replace("$typeName$", appType[i]["FuncName"]).replace("$typeCode$", appType[i]["FuncID"]).replace("$type_icon$", icon);
+                }
+            }
+            $("#appList").html(typeHtml);
+        }
+
+
+        //加载应用列表HTML
+        function InitAppLiHtml() {
+
+            var appLi = appArr;
+            var liHtml = "";
+            var sso_token = $.cookie('caradigm_sso_token');
+            var url = "";
+            for (var i = 0; i < appLi.length; i++) {
+                url = "";
+                if (appLi[i].FuncType === "3" && (!!appLi[i].Url)) {
+
+                    var tmp = liTemplate;
+
+                    var icon = appLi[i]["FuncIcon"];
+                    if (icon == null || icon == "") {
+                        icon = "fa fa-book";
+                    }
+
+                    if (appLi[i].Url.indexOf('EXEAPP:') >= 0) {
+
+                        tmp = liTemplate_cs;
+                        liHtml = tmp.replace("$cs_path$", appLi[i]["Url"].replace('EXEAPP:', '')).replace("$funcCode$", appLi[i]["FuncCode"]);
+
+                    } else {
+                        url = appLi[i]["Url"];
+
+                        if (url.indexOf("?") >= 0) {
+
+                            url += "&sso_token=" + sso_token;
+                        } else {
+                            url += "?sso_token=" + sso_token;
+                        }
+                        console.log(url);
+                        liHtml = tmp.replace("$url$", url);
+                    }
+
+                    $("ul#" + appLi[i]["ParentID"] + "").append(liHtml.replace("$icon$", icon).replace("$appName$", appLi[i]["FuncName"]));
+                }
+            }
+        }
+
+
+        var userId = '@SSO.Code.OperatorProvider.Provider.GetCurrent().UserId';
+
+        function OpenExeFile(obj) {
+
+            var funcCode = obj.id;
+
+            $.ajax({
+                url: SSOHostAppService + "Service1/OpenByHostName?appCode=" + funcCode + "&jsoncallback=?",
+                type: "get",
+                dataType: "jsonp",
+                success: function (data) {
+
+                    var _data;
+
+                    if (data.indexOf("nofile") >= 0) {
+                        _data = $.parseJSON(data);
+                        $.modalMsg("未上传该应用，请联系管理员。", "warning");
+                        return;
+                    } else {
+                        _data = $.parseJSON(data.replace(/\\/g, "&"));
+                    }
+                    var path = _data.localPath.replace(/&/g, "\\");
+
+                    //console.log(_data);
+                    if (_data.state == "noupdate") {
+
+                        //是最新版，直接打开
+                        openByLocalPath(path);
+
+                    } else if (_data.state == "FileInUse") {
+
+                        $.modalMsg(_data.message, "warning");
+
+                    } else {
+
+                        //不是最新版，需要更新一个版本
+                        var localVersion = _data.localVersion;
+                        var lastVersion = _data.lastVersion;
+
+                        if (localVersion == "") {
+                            localVersion = "暂无";
+                        }
+
+                        var content = "更新提示：" + localVersion + " =====> " + lastVersion + "</br>当前版本不是最新，是否下载最新版本?"
+
+                        $.modalConfirm(content, function (r) {
+                            if (r) {
+
+                                $.ajax({
+                                    url: SSOHostAppService + "Service1/DownloadLastVersion_new?appCode=" + funcCode + "&appVersion=" + lastVersion + "&userId=" + userId + "&jsoncallback=?",
+                                    type: "get",
+                                    dataType: "jsonp",
+                                    success: function (data) {
+
+                                        var _data = $.parseJSON(data.replace(/\\/g, "&"));
+                                        $.modalMsg(_data.message, _data.state);
+                                        if (_data.state == "success") {
+                                            $.modalClose();
+                                        }
+                                    }
+                                });
+                            } else {
+                                //openByLocalPath(path);
+                            }
+                        });
+                    }
+
+                }, error: function (e) {
+                    //console.log(e);
+                    $.modalMsg("CS端集成登录环境未启动", "error");
+                }
+            });
+        }
+
+
+        //打开本地app
+        function openByLocalPath(path) {
+            $.ajax({
+                url: SSOHostAppService + "Service1/OpenExe?path=" + escape(path) + "&jsoncallback=?",
+                type: "get",
+                dataType: "jsonp",
+                success: function (data) {
+                    var _data = $.parseJSON(data);
+                    if (data != null && _data.state == "error") {
+                        $.modalMsg(_data.message, _data.state);
+                    }
+                }, error: function () {
+                    $.modalMsg("程序发生异常", "error");
+                }
+            });
+        }
+    </script>
+    <div id="areascontent">
+        <div class="rows" style="margin-bottom: 1%; overflow: hidden;">
+            <div style="float: left; width: 100%;">
+                <div style="height: 100%; border: 1px solid #e6e6e6; background-color: #fff; overflow-y: scroll;" id="pannel">
+                    <div class="panel panel-default">
+                        <div class="panel-body" style="padding-bottom: 0px;" id="appList">
+                            @*<div class="AppType">
+                                <p class="TypeName">医院信息应用</p>
+                                <ul class="bs-glyphicons-list">
+                                    <li>
+                                        <i class="fa fa-briefcase fa-5x" aria-hidden="true"></i>
+                                        <p>患者360</p>
+                                    </li>
+                                    <li>
+                                        <i class="fa fa-plus-square fa-5x" aria-hidden="true"></i>
+                                        <p>患者主索引</p>
+                                    </li>
+                                    <li>
+                                        <i class="fa fa-database fa-5x" aria-hidden="true"></i>
+                                        <p>主数据</p>
+                                    </li>
+                                    <li>
+                                        <a href="javascript:void(0)" onclick="openExe('')" target="_blank" style="text-decoration: none;">
+                                            <i class="fa fa-life-ring fa-5x" aria-hidden="true"></i>
+                                            <p>科研系统</p>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="javascript:void(0)" onclick="openExe('')" target="_blank" style="text-decoration: none;">
+                                            <i class="fa fa-eye fa-5x" aria-hidden="true"></i>
+                                            <p>监控平台</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <br />
+                            <div class="AppType">
+                                <p class="TypeName">医院临床应用</p>
+                                <ul class="bs-glyphicons-list">
+                                    <li>
+                                        <i class="fa fa-user fa-5x" aria-hidden="true"></i>
+                                        <p>医生工作站</p>
+                                    </li>
+                                    <li>
+                                        <i class="fa fa-stethoscope fa-5x" aria-hidden="true"></i>
+                                        <p>护士工作站</p>
+                                    </li>
+                                    <li>
+                                        <i class="fa fa-h-square fa-5x" aria-hidden="true"></i>
+                                        <p>放射系统</p>
+                                    </li>
+                                    <li>
+                                        <a href="javascript:void(0)" onclick="openExe('')" target="_blank" style="text-decoration: none;">
+                                            <i class="fa fa-bold fa-5x" aria-hidden="true"></i>
+                                            <p>B超系统</p>
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <a href="javascript:void(0)" onclick="openExe('')" target="_blank" style="text-decoration: none;">
+                                            <i class="fa fa-heartbeat fa-5x" aria-hidden="true"></i>
+                                            <p>检验系统</p>
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                            <br />
+                            <div class="AppType">
+                                <p class="TypeName">医院管理应用</p>
+                                <ul class="bs-glyphicons-list">
+                                    <li>
+                                        <i class="fa fa-th-large fa-5x" aria-hidden="true"></i>
+                                        <p>OA协同办公</p>
+                                    </li>
+                                    <li>
+                                        <i class="fa fa-usd fa-5x" aria-hidden="true"></i>
+                                        <p>资产管理系统</p>
+                                    </li>
+                                    <li>
+                                        <i class="fa fa-laptop fa-5x" aria-hidden="true"></i>
+                                        <p>设备管理</p>
+                                    </li>                                   
+                                </ul>
+                            </div>*@
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .panel-default {
+            border: none;
+            border-radius: 0px;
+            margin-bottom: 0px;
+            box-shadow: none;
+            -webkit-box-shadow: none;
+        }
+    </style>
+</body>
+</html>
